@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <string.h> /* 新增：为了使用 memset 和 memmove */
 
 #include <linux/fb.h>
 
@@ -49,7 +50,7 @@ int fbopen()
   if (fb_vinfo.bits_per_pixel != 32) return FBOPEN_BPP; /* Unexpected */
 
   framebuffer = mmap(0, fb_finfo.smem_len, PROT_READ | PROT_WRITE,
-		     MAP_SHARED, fd, 0);
+         MAP_SHARED, fd, 0);
   if (framebuffer == (unsigned char *)-1) return FBOPEN_MMAP;
 
   return 0;
@@ -72,25 +73,25 @@ void fbputchar(char c, int row, int col)
     pixel = left;
     mask = 0x80;
     for (x = 0 ; x < FONT_WIDTH ; x++) {
-      if (pixels & mask) {	
-	pixel[0] = 255; /* Red */
+      if (pixels & mask) {  
+  pixel[0] = 255; /* Red */
         pixel[1] = 255; /* Green */
         pixel[2] = 255; /* Blue */
         pixel[3] = 0;
       } else {
-	pixel[0] = 0;
+  pixel[0] = 0;
         pixel[1] = 0;
         pixel[2] = 0;
         pixel[3] = 0;
       }
       pixel += 4;
       if (pixels & mask) {
-	pixel[0] = 255; /* Red */
+  pixel[0] = 255; /* Red */
         pixel[1] = 255; /* Green */
         pixel[2] = 255; /* Blue */
         pixel[3] = 0;
       } else {
-	pixel[0] = 0;
+  pixel[0] = 0;
         pixel[1] = 0;
         pixel[2] = 0;
         pixel[3] = 0;
@@ -248,3 +249,62 @@ static unsigned char font[] = {
   0x00, 0x00, 0x76, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x66, 0x00, 0x66, 0x66, 0x66, 0x66, 0x3c, 0x18, 0x18, 0x18, 0x3c, 0x00, 0x00, 0x00, 0x00,
 };
+
+/*
+ * =====================================================================
+ * 下面是为 Lab2 新增的 Framebuffer 控制函数
+ * =====================================================================
+ */
+
+/*
+ * 清空整个屏幕
+ */
+void fb_clear() {
+    if (framebuffer) {
+        // smem_len 是 framebuffer 的总字节数
+        memset(framebuffer, 0, fb_finfo.smem_len);
+    }
+}
+
+/*
+ * 清空指定的文本行 (注意：由于字体渲染时高度乘了 2，每行像素高度是 FONT_HEIGHT * 2)
+ */
+void fb_clear_row(int row) {
+    if (!framebuffer) return;
+    
+    int row_height_pixels = FONT_HEIGHT * 2;
+    int bytes_per_row = fb_finfo.line_length;
+    
+    // 计算该文本行对应的 framebuffer 起始地址
+    unsigned char *dest = framebuffer + (row * row_height_pixels + fb_vinfo.yoffset) * bytes_per_row;
+    
+    // 清空该行占用的所有像素
+    memset(dest, 0, row_height_pixels * bytes_per_row);
+}
+
+/*
+ * 将 [start_row+1, end_row] 区域的内容整体上移一行，并清空最后一行 (end_row)
+ */
+void fb_scroll_up(int start_row, int end_row) {
+    if (!framebuffer) return;
+    
+    int row_height_pixels = FONT_HEIGHT * 2;
+    int bytes_per_row_block = row_height_pixels * fb_finfo.line_length;
+    
+    // 目标地址：要覆盖的起始行 (start_row)
+    unsigned char *dest = framebuffer + (start_row * row_height_pixels + fb_vinfo.yoffset) * fb_finfo.line_length;
+    
+    // 源地址：被移动块的起始行 (start_row 的下一行)
+    unsigned char *src = dest + bytes_per_row_block;
+    
+    // 需要移动的行数
+    int num_rows_to_move = end_row - start_row;
+    
+    if (num_rows_to_move > 0) {
+        // 使用 memmove 防止内存重叠导致的数据损坏
+        memmove(dest, src, num_rows_to_move * bytes_per_row_block);
+    }
+    
+    // 移动完毕后，原本最后一行的数据已经被移上去了，我们需要把它清空
+    fb_clear_row(end_row);
+}
