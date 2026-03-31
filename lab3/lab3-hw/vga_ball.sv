@@ -6,9 +6,11 @@
  *
  * Register map:
  * 
- * Byte Offset  15 ... 0   Meaning
- *        0    |   X    | Ball X coordinate (0-639)
- *        1    |   Y    | Ball Y coordinate (0-479)
+ * Address  Data[15:0]   Meaning
+ *    0        X         Ball X coordinate (0-639)
+ *    1        Y         Ball Y coordinate (0-479)
+ *
+ * Writes are staged, then applied only during blanking to avoid tearing.
  */
 
 module vga_ball(
@@ -34,6 +36,9 @@ module vga_ball(
 
    logic [10:0] ball_x;
    logic [9:0]  ball_y;
+   logic [10:0] pending_x;
+   logic [9:0]  pending_y;
+   logic        pending_valid;
 
    // fixed background color
    logic [7:0] background_r, background_g, background_b;
@@ -48,19 +53,35 @@ module vga_ball(
 
          ball_x <= 11'd320;
          ball_y <= 10'd240;
+         pending_x <= 11'd320;
+         pending_y <= 10'd240;
+         pending_valid <= 1'b0;
       end
-      else if (chipselect && write) begin
-         case (address)
-            3'h0: begin
-               if (writedata[10:0] <= X_Max)
-                  ball_x <= writedata[10:0];
-            end
+      else begin
+         if (chipselect && write) begin
+            case (address)
+               3'h0: begin
+                  if (writedata[10:0] <= X_Max) begin
+                     pending_x <= writedata[10:0];
+                     pending_valid <= 1'b1;
+                  end
+               end
 
-            3'h1: begin
-               if (writedata[9:0] <= Y_Max)
-                  ball_y <= writedata[9:0];
-            end
-         endcase
+               3'h1: begin
+                  if (writedata[9:0] <= Y_Max) begin
+                     pending_y <= writedata[9:0];
+                     pending_valid <= 1'b1;
+                  end
+               end
+            endcase
+         end
+
+         // Apply new coordinates only during blanking to avoid visible tearing.
+         if (!VGA_BLANK_n && pending_valid) begin
+            ball_x <= pending_x;
+            ball_y <= pending_y;
+            pending_valid <= 1'b0;
+         end
       end
    end
 
