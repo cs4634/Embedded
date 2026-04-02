@@ -91,7 +91,7 @@ module vga_ball(
    assign dx = $signed({1'b0, hcount[10:1]}) - $signed({1'b0, ball_x});
    assign dy = $signed({1'b0, vcount[9:0]})  - $signed({1'b0, ball_y});
 
-   always_comb begin
+   /* always_comb begin
       {VGA_R, VGA_G, VGA_B} = {8'h00, 8'h00, 8'h00};
 
       if (VGA_BLANK_n) begin
@@ -102,7 +102,18 @@ module vga_ball(
       end
    end
 
-endmodule
+endmodule */
+    
+   always_ff @(posedge clk) begin
+      {VGA_R, VGA_G, VGA_B} <= {8'h00, 8'h00, 8'h00};
+
+      if (VGA_BLANK_n) begin
+         if (dx * dx + dy * dy <= Radius * Radius)
+            {VGA_R, VGA_G, VGA_B} <= {8'hff, 8'hff, 8'hff};
+         else
+            {VGA_R, VGA_G, VGA_B} <= {background_r, background_g, background_b};
+      end
+   end
 
 module vga_counters(
  input logic         clk50, reset,
