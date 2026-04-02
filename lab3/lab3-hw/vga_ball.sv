@@ -48,8 +48,8 @@ module vga_ball(
    always_ff @(posedge clk) begin
       if (reset) begin
          background_r <= 8'h00;
-         background_g <= 8'h00;
-         background_b <= 8'h80;
+         background_g <= 8'h80;
+         background_b <= 8'h00;
 
          ball_x <= 11'd320;
          ball_y <= 10'd240;
@@ -105,7 +105,7 @@ module vga_ball(
 endmodule */
     
    always_ff @(posedge clk) begin
-       {VGA_R, VGA_G, VGA_B} <= {8'h00, 8'h80, 8'h00};
+       {VGA_R, VGA_G, VGA_B} <= {8'h00, 8'h00, 8'h00};
 
       if (VGA_BLANK_n) begin
          if (dx * dx + dy * dy <= Radius * Radius)
