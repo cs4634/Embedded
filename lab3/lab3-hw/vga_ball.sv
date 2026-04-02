@@ -105,7 +105,7 @@ module vga_ball(
 endmodule */
     
    always_ff @(posedge clk) begin
-      {VGA_R, VGA_G, VGA_B} <= {8'h00, 8'h00, 8'h00};
+       {VGA_R, VGA_G, VGA_B} <= {8'h00, 8'h80, 8'h00};
 
       if (VGA_BLANK_n) begin
          if (dx * dx + dy * dy <= Radius * Radius)
