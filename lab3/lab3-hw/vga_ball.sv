@@ -115,6 +115,8 @@ endmodule */
       end
    end
 
+endmodule
+
 module vga_counters(
  input logic         clk50, reset,
  output logic [10:0] hcount,  // hcount[10:1] is pixel column
